@@ -47,33 +47,39 @@ impl eframe::App for CompanyApp {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
+        egui::TopBottomPanel::top("top_panel")
+            .frame(
+                egui::Frame::new()
+                    .fill(egui::Theme::default_visuals(ctx.theme()).extreme_bg_color)
+                    .inner_margin(10),
+            )
+            .show(ctx, |ui| {
+                // The top panel is often a good place for a menu bar:
+                egui::MenuBar::new().ui(ui, |ui| {
+                    // NOTE: no File->Quit on web pages!
+                    // let is_web = cfg!(target_arch = "wasm32");
+                    // if !is_web {
+                    //     ui.menu_button("File", |ui| {
+                    //         if ui.button("Quit").clicked() {
+                    //             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    //         }
+                    //     });
+                    //     ui.add_space(16.0);
+                    // }
 
-            egui::MenuBar::new().ui(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
+                    egui::widgets::global_theme_preference_switch(ui);
 
-                if ui.button("Expound 述知").clicked() {
-                    //
-                }
-                
-                egui::widgets::global_theme_preference_buttons(ui);
+                    if ui.button("Expound 述知").clicked() {
+                        //
+                    }
+                });
+
+                ui.label("一家轻量级的软件公司");
             });
-        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("述知 Expound");
-            ui.label("一家轻量级的软件公司");
+            
 
             ui.horizontal(|ui| {
                 ui.label("Write something: ");
