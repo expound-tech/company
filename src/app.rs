@@ -1,17 +1,89 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct CompanyApp {
+#[cfg(feature = "glow")]
+use eframe::glow;
+
+#[cfg(target_arch = "wasm32")]
+use core::any::Any;
+
+use crate::PageApp;
+
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct HomeApp {
+    name: &'static str,
+}
+impl PageApp for HomeApp {
+    fn page_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        ui.heading("Test word...");
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum Anchor {
+    #[default]
+    Home,
+}
+
+impl Anchor {
+    #[cfg(target_arch = "wasm32")]
+    fn all() -> Vec<Self> {
+        vec![
+            Self::Home,
+        ]
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn from_str_case_insensitive(anchor: &str) -> Option<Self> {
+        let anchor = anchor.to_lowercase();
+        Self::all().into_iter().find(|x| x.to_string() == anchor)
+    }
+}
+
+impl std::fmt::Display for Anchor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut name = format!("{self:?}");
+        name.make_ascii_lowercase();
+        f.write_str(&name)
+    }
+}
+
+impl From<Anchor> for egui::WidgetText {
+    fn from(value: Anchor) -> Self {
+        Self::from(value.to_string())
+    }
+}
+
+
+#[derive(Clone, Copy, Debug)]
+#[must_use]
+enum Command {
+    Nothing,
+    ResetEverything
+}
+
+/// The state that we persist (serialize).
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct State {
+    home: HomeApp,
+
+    selected_anchor: Anchor,
+}
+
+
+pub struct CompanyWebsite {
+    pub state: State,
+
     // Example stuff:
     label: String,
-
-    #[serde(skip)] // This how you opt-out of serialization of a field
     value: f32,
 }
 
-impl Default for CompanyApp {
+impl Default for CompanyWebsite {
     fn default() -> Self {
         Self {
+            state: State::default(),
             // Example stuff:
             label: "Hello World!".to_owned(),
             value: 2.7,
@@ -19,59 +91,67 @@ impl Default for CompanyApp {
     }
 }
 
-impl CompanyApp {
+impl CompanyWebsite {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
         replace_fonts(&cc.egui_ctx);
 
+        #[allow(unused_mut, clippy::allow_attributes)]
+        let mut slf = Self {
+            state: State::default(),
+            label: "Hello".to_string(),
+            value: 3.14
+        };
+
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
-        } else {
-            Default::default()
+        #[cfg(feature = "persistence")]
+        if let Some(storage) = cc.storage 
+            && let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
+            slf.state = state;
         }
+
+        slf
+    }
+
+    pub fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&'static str, Anchor, &mut dyn PageApp)>{
+        let vec = vec![
+            ("Expound 述知", Anchor::Home, &mut self.state.home as &mut dyn PageApp)
+        ];
+
+        vec.into_iter()
     }
 }
 
-impl eframe::App for CompanyApp {
+impl eframe::App for CompanyWebsite {
     /// Called by the framework to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
+        // eframe::set_value(storage, eframe::APP_KEY, &self.state);
+    }
+
+    fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
+        // Give the area behind the floating windows a different color, because it looks better:
+        let color = egui::lerp(
+            egui::Rgba::from(visuals.panel_fill)..=egui::Rgba::from(visuals.extreme_bg_color), 
+            0.5);
+        let color = egui::Color32::from(color);
+        color.to_normalized_gamma_f32()
     }
 
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
+        let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("top_panel")
-            .frame(
-                egui::Frame::new()
-                    .fill(egui::Theme::default_visuals(ctx.theme()).extreme_bg_color)
-                    .inner_margin(10),
-            )
+            .frame(egui::Frame::new().inner_margin(10))
             .show(ctx, |ui| {
                 // The top panel is often a good place for a menu bar:
                 egui::MenuBar::new().ui(ui, |ui| {
-                    // NOTE: no File->Quit on web pages!
-                    // let is_web = cfg!(target_arch = "wasm32");
-                    // if !is_web {
-                    //     ui.menu_button("File", |ui| {
-                    //         if ui.button("Quit").clicked() {
-                    //             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    //         }
-                    //     });
-                    //     ui.add_space(16.0);
-                    // }
-
-                    egui::widgets::global_theme_preference_switch(ui);
-
-                    if ui.button("Expound 述知").clicked() {
-                        //
-                    }
+                    self.bar_contents(ui, frame, &mut cmd);
                 });
 
                 ui.label("一家轻量级的软件公司");
@@ -103,6 +183,27 @@ impl eframe::App for CompanyApp {
                 egui::warn_if_debug_build(ui);
             });
         });
+    }
+}
+
+impl CompanyWebsite {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
+        egui::widgets::global_theme_preference_switch(ui);
+        ui.separator();
+
+        // iter apps for menu
+        let mut selected_anchor = self.state.selected_anchor;
+        for (name, anchor, _app) in self.apps_iter_mut() {
+            if ui
+                .selectable_label(selected_anchor == anchor, name)
+                .clicked()
+            {
+                selected_anchor = anchor;
+                if frame.is_web() {
+                    // ui.open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
+                }
+            }
+        }
     }
 }
 

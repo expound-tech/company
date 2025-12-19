@@ -4,11 +4,17 @@ version = "0.1.0"
 authors = ["Lonexw <lone@expound.cc>"]
 edition = "2024"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
-rust-version = "1.88"
+publish = false
+rust-version = "1.92"
 
 [package.metadata.docs.rs]
 all-features = true
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+[features]
+glow = ["eframe/glow"]
+serde = ["dep:serde", "egui/serde"]
+persistence = ["eframe/persistence", "egui/persistence", "serde"]
 
 [dependencies]
 egui = "0.33.0"
@@ -23,7 +29,8 @@ eframe = { version = "0.33.0", default-features = false, features = [
 log = "0.4.27"
 
 # You only need serde if you want app persistence:
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"], optional = true }
+chrono = "0.4.42"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

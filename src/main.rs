@@ -20,7 +20,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "述知 Expound",
         native_options,
-        Box::new(|cc| Ok(Box::new(expound_cc::CompanyApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(expound_cc::CompanyWebsite::new(cc)))),
     )
 }
 
@@ -50,7 +50,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(expound_cc::CompanyApp::new(cc)))),
+                Box::new(|cc| Ok(Box::new(expound_cc::CompanyWebsite::new(cc)))),
             )
             .await;
 
